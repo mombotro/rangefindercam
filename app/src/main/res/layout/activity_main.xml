@@ -27,7 +27,7 @@
                 android:id="@+id/modeToggle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="20dp"
+                android:layout_marginRight="20dp"
                 android:textColor="#FFFFFF"
                 android:text="@string/mode_auto" />
 
@@ -43,7 +43,7 @@
                     android:id="@+id/isoButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="20dp"
+                    android:layout_marginRight="20dp"
                     android:textColor="#FFFFFF"
                     android:text="@string/iso_auto" />
 
@@ -51,7 +51,7 @@
                     android:id="@+id/evButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="20dp"
+                    android:layout_marginRight="20dp"
                     android:textColor="#FFFFFF"
                     android:text="@string/ev_zero" />
 
@@ -66,7 +66,7 @@
                     android:id="@+id/meterOver"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginLeft="4dp"
                     android:textColor="#FFFFFF"
                     android:text="@string/meter_over" />
 
@@ -85,7 +85,7 @@
                 android:id="@+id/chipBlackAndWhite"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="24dp"
+                android:layout_marginRight="24dp"
                 android:textColor="#FFFFFF"
                 android:checked="true"
                 android:text="@string/look_black_and_white" />
@@ -94,7 +94,7 @@
                 android:id="@+id/chipSepia"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="24dp"
+                android:layout_marginRight="24dp"
                 android:textColor="#FFFFFF"
                 android:text="@string/look_sepia" />
 
