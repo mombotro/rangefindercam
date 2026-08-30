@@ -71,14 +71,14 @@
 
                     <com.mombotro.rangefindercam.camera.RotaryDialView
                         android:id="@+id/isoDial"
-                        android:layout_width="72dp"
-                        android:layout_height="72dp"
+                        android:layout_width="130dp"
+                        android:layout_height="52dp"
                         android:layout_marginRight="16dp" />
 
                     <com.mombotro.rangefindercam.camera.RotaryDialView
                         android:id="@+id/evDial"
-                        android:layout_width="72dp"
-                        android:layout_height="72dp"
+                        android:layout_width="130dp"
+                        android:layout_height="52dp"
                         android:layout_marginRight="20dp" />
 
                     <TextView

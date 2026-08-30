@@ -4,25 +4,22 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.min
-import kotlin.math.sin
 
 /**
- * A rotary dial: touch-drag in a circle around it to step through a bounded
- * list of values, one "click" (with a short vibration) per fixed angular
- * increment. Has hard stops at both ends - dragging past the first or last
- * value doesn't wrap around, matching how a real camera dial behaves, with
- * a stronger vibration marking the end stop. Ticks are drawn across a fixed
- * 270-degree arc rather than a full circle, so the bounded range reads
- * visually too.
+ * A thumbwheel dial drawn side-on (a knurled cylinder viewed from the side,
+ * like a real camera's ISO/EV wheel), not face-on like a clock. Drag left
+ * or right to spin it, one "click" (with a short vibration) per fixed
+ * horizontal drag distance. Has hard stops at both ends - dragging past the
+ * first or last value doesn't wrap around, matching how a real camera dial
+ * behaves, with a stronger vibration marking the end stop.
  */
 class RotaryDialView @JvmOverloads constructor(
     context: Context,
@@ -30,9 +27,7 @@ class RotaryDialView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private companion object {
-        const val DEGREES_PER_STEP = 18f
-        const val ARC_DEGREES = 270f
-        const val START_DEGREES = -135f
+        const val PIXELS_PER_STEP = 36f
         const val CLICK_VIBRATE_MS = 15L
         const val END_STOP_VIBRATE_MS = 40L
     }
@@ -41,15 +36,15 @@ class RotaryDialView @JvmOverloads constructor(
     private var currentIndex = 0
     private var onValueChanged: ((Int, String) -> Unit)? = null
 
-    private var lastTouchAngle = 0f
-    private var accumulatedDegrees = 0f
+    private var lastTouchX = 0f
+    private var accumulatedPixels = 0f
 
-    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         style = Paint.Style.STROKE
         strokeWidth = 4f
     }
-    private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val knurlPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         strokeWidth = 3f
     }
@@ -65,7 +60,7 @@ class RotaryDialView @JvmOverloads constructor(
     fun setValues(newValues: List<String>, initialIndex: Int = 0) {
         values = newValues
         currentIndex = initialIndex.coerceIn(0, (newValues.size - 1).coerceAtLeast(0))
-        accumulatedDegrees = 0f
+        accumulatedPixels = 0f
         invalidate()
     }
 
@@ -73,65 +68,62 @@ class RotaryDialView @JvmOverloads constructor(
         onValueChanged = listener
     }
 
-    private fun angleForFraction(fraction: Float): Double =
-        Math.toRadians((START_DEGREES + fraction * ARC_DEGREES).toDouble())
-
-    private fun fractionForIndex(index: Int): Float =
-        if (values.size <= 1) 0f else index.toFloat() / (values.size - 1)
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val cx = width / 2f
-        val cy = height / 2f
-        val radius = min(width, height) / 2f - ringPaint.strokeWidth
-        canvas.drawCircle(cx, cy, radius, ringPaint)
+        val strokeInset = bodyPaint.strokeWidth
+        val bodyRect = RectF(strokeInset, strokeInset * 3, width - strokeInset, height - strokeInset * 3)
+        val cornerRadius = bodyRect.height() / 2f
+        canvas.drawRoundRect(bodyRect, cornerRadius, cornerRadius, bodyPaint)
 
         if (values.isEmpty()) return
 
+        // Knurl lines are drawn at fixed positions across the body (this
+        // small, fixed value set doesn't need an actually-scrolling reel) -
+        // one per value, evenly spaced with margin so the outermost lines
+        // don't sit on the rounded end caps. The current position's line is
+        // drawn taller and gets a pointer triangle above it, like a
+        // highlighted notch on a real thumbwheel.
+        val margin = cornerRadius * 0.8f
+        val usableWidth = bodyRect.width() - margin * 2f
+        val shortHalfHeight = bodyRect.height() * 0.28f
+        val tallHalfHeight = bodyRect.height() * 0.42f
+
         values.indices.forEach { index ->
-            val angle = angleForFraction(fractionForIndex(index))
-            val innerR = radius - 14f
-            val x1 = cx + innerR * cos(angle).toFloat()
-            val y1 = cy + innerR * sin(angle).toFloat()
-            val x2 = cx + radius * cos(angle).toFloat()
-            val y2 = cy + radius * sin(angle).toFloat()
-            canvas.drawLine(x1, y1, x2, y2, tickPaint)
+            val fraction = if (values.size <= 1) 0.5f else index.toFloat() / (values.size - 1)
+            val x = bodyRect.left + margin + fraction * usableWidth
+            val halfHeight = if (index == currentIndex) tallHalfHeight else shortHalfHeight
+            canvas.drawLine(x, bodyRect.centerY() - halfHeight, x, bodyRect.centerY() + halfHeight, knurlPaint)
         }
 
-        val pointerAngle = angleForFraction(fractionForIndex(currentIndex))
-        val pointerR = radius - 22f
-        val px = cx + pointerR * cos(pointerAngle).toFloat()
-        val py = cy + pointerR * sin(pointerAngle).toFloat()
-        canvas.drawCircle(px, py, 6f, pointerPaint)
+        val currentFraction = if (values.size <= 1) 0.5f else currentIndex.toFloat() / (values.size - 1)
+        val pointerX = bodyRect.left + margin + currentFraction * usableWidth
+        val pointerTop = strokeInset
+        val pointerPath = Path().apply {
+            moveTo(pointerX - 6f, pointerTop)
+            lineTo(pointerX + 6f, pointerTop)
+            lineTo(pointerX, pointerTop + 8f)
+            close()
+        }
+        canvas.drawPath(pointerPath, pointerPaint)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val cx = width / 2f
-        val cy = height / 2f
-        val angleDegrees = Math.toDegrees(
-            atan2((event.y - cy).toDouble(), (event.x - cx).toDouble())
-        ).toFloat()
-
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                lastTouchAngle = angleDegrees
-                accumulatedDegrees = 0f
+                lastTouchX = event.x
+                accumulatedPixels = 0f
             }
             MotionEvent.ACTION_MOVE -> {
-                var delta = angleDegrees - lastTouchAngle
-                // Normalize the wrap at +/-180deg so a drag crossing that
-                // seam doesn't register as one huge jump.
-                if (delta > 180f) delta -= 360f
-                if (delta < -180f) delta += 360f
-                lastTouchAngle = angleDegrees
-                accumulatedDegrees += delta
+                val delta = event.x - lastTouchX
+                lastTouchX = event.x
+                accumulatedPixels += delta
 
-                while (accumulatedDegrees >= DEGREES_PER_STEP) {
-                    accumulatedDegrees -= DEGREES_PER_STEP
+                while (accumulatedPixels >= PIXELS_PER_STEP) {
+                    accumulatedPixels -= PIXELS_PER_STEP
                     step(1)
                 }
-                while (accumulatedDegrees <= -DEGREES_PER_STEP) {
-                    accumulatedDegrees += DEGREES_PER_STEP
+                while (accumulatedPixels <= -PIXELS_PER_STEP) {
+                    accumulatedPixels += PIXELS_PER_STEP
                     step(-1)
                 }
             }
