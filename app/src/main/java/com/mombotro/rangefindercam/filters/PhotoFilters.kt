@@ -85,10 +85,15 @@ object PhotoFilters {
         return (channel + noise).coerceIn(0, 255)
     }
 
-    fun apply(source: Bitmap, look: Look): Bitmap = when (look) {
-        Look.BLACK_AND_WHITE -> applyBlackAndWhite(source)
-        Look.SEPIA -> applySepia(source)
-        Look.GRAIN -> applyGrain(source)
+    // Grain is composed onto every look, not just its own chip - it reads as
+    // film texture regardless of tone, so B&W and Sepia get it too.
+    fun apply(source: Bitmap, look: Look): Bitmap {
+        val toned = when (look) {
+            Look.BLACK_AND_WHITE -> applyBlackAndWhite(source)
+            Look.SEPIA -> applySepia(source)
+            Look.GRAIN -> source
+        }
+        return applyGrain(toned)
     }
 
     internal fun drawWithMatrix(source: Bitmap, matrix: ColorMatrix): Bitmap {

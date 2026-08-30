@@ -31,6 +31,14 @@ class CameraPreviewView @JvmOverloads constructor(
             val opened = Camera.open()
             camera = opened
             opened.setDisplayOrientation(90)
+            // setDisplayOrientation only rotates the live preview surface -
+            // it has no effect on the saved JPEG, which needs its own
+            // rotation set via Parameters (written into the file's EXIF
+            // orientation tag) or it saves sideways regardless of how the
+            // preview looked on screen.
+            val parameters = opened.parameters
+            parameters.setRotation(90)
+            opened.parameters = parameters
             opened.setPreviewDisplay(holder)
             opened.startPreview()
         } catch (e: Exception) {

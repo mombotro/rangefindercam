@@ -101,19 +101,52 @@ class PhotoFiltersTest {
     }
 
     @Test
-    fun `apply dispatches to the matching filter for each look`() {
-        val source = coloredBitmap(Color.rgb(200, 50, 100))
+    fun `apply dispatches to the matching filter for each look, plus grain on all of them`() {
+        // apply() always composes grain on top of the chosen look, so exact
+        // per-pixel assertions (like B&W's R==G==B) no longer hold - grain
+        // perturbs each channel independently. Check aggregate tendencies
+        // over a bigger bitmap instead, which survives the noise.
+        val width = 20
+        val height = 20
+        fun coloredSource(color: Int): Bitmap {
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    bitmap.setPixel(x, y, color)
+                }
+            }
+            return bitmap
+        }
 
-        val bwPixel = PhotoFilters.apply(source, Look.BLACK_AND_WHITE).getPixel(0, 0)
-        assertEquals(Color.red(bwPixel), Color.green(bwPixel))
+        fun averageRedMinusBlue(bitmap: Bitmap): Double {
+            var total = 0
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val pixel = bitmap.getPixel(x, y)
+                    total += Color.red(pixel) - Color.blue(pixel)
+                }
+            }
+            return total.toDouble() / (width * height)
+        }
 
-        val sepiaPixel = PhotoFilters.apply(source, Look.SEPIA).getPixel(0, 0)
-        assertTrue(Color.red(sepiaPixel) > Color.blue(sepiaPixel))
+        val bwSource = coloredSource(Color.rgb(200, 50, 100))
+        val bwResult = PhotoFilters.apply(bwSource, Look.BLACK_AND_WHITE)
+        // Grain's noise is symmetric and independent per channel, so a
+        // desaturated (R==G==B before grain) image should still average out
+        // close to zero red-minus-blue difference even after noise.
+        assertTrue("expected near-zero avg red-blue gap for B&W+grain, was ${averageRedMinusBlue(bwResult)}",
+            Math.abs(averageRedMinusBlue(bwResult)) < 10)
 
-        // GRAIN's output is randomized, so just confirm apply() routes to it
-        // without throwing and returns a same-sized bitmap.
-        val grainResult = PhotoFilters.apply(source, Look.GRAIN)
-        assertEquals(source.width, grainResult.width)
-        assertEquals(source.height, grainResult.height)
+        val sepiaSource = coloredSource(Color.rgb(128, 128, 128))
+        val sepiaResult = PhotoFilters.apply(sepiaSource, Look.SEPIA)
+        assertTrue("expected a clear warm-tint average even with grain noise, was ${averageRedMinusBlue(sepiaResult)}",
+            averageRedMinusBlue(sepiaResult) > 20)
+
+        // GRAIN routes to grain-only (no tone change) plus grain, so just
+        // confirm apply() returns a same-sized bitmap without throwing.
+        val grainSource = coloredSource(Color.rgb(200, 50, 100))
+        val grainResult = PhotoFilters.apply(grainSource, Look.GRAIN)
+        assertEquals(grainSource.width, grainResult.width)
+        assertEquals(grainSource.height, grainResult.height)
     }
 }
