@@ -12,6 +12,7 @@ import android.widget.Toast
 import com.mombotro.rangefindercam.camera.CameraPreviewView
 import com.mombotro.rangefindercam.camera.ExposureMeter
 import com.mombotro.rangefindercam.camera.MeterState
+import com.mombotro.rangefindercam.camera.RotaryDialView
 import com.mombotro.rangefindercam.filters.Look
 import com.mombotro.rangefindercam.filters.PhotoFilters
 import com.mombotro.rangefindercam.storage.PhotoStorage
@@ -21,9 +22,10 @@ class MainActivity : Activity() {
     private companion object {
         const val ISO_AUTO = "auto"
         // Fallback list used only if the live query (supportedIsoValues())
-        // comes back empty - e.g. tapped before the camera finished opening,
-        // or this device's HAL doesn't expose the vendor iso-values key at
-        // all. Matches what this exact hardware reports when it IS present.
+        // comes back empty - e.g. entered Manual mode before the camera
+        // finished opening, or this device's HAL doesn't expose the
+        // vendor iso-values key at all. Matches what this exact hardware
+        // reports when it IS present.
         val FALLBACK_ISO_VALUES = listOf("auto", "100", "200", "400", "800", "1600")
         const val METER_BLINK_INTERVAL_MS = 400L
     }
@@ -31,15 +33,15 @@ class MainActivity : Activity() {
     private lateinit var cameraPreview: CameraPreviewView
     private lateinit var modeToggle: TextView
     private lateinit var manualControlsRow: View
-    private lateinit var isoButton: TextView
-    private lateinit var evButton: TextView
+    private lateinit var isoLabel: TextView
+    private lateinit var evLabel: TextView
+    private lateinit var isoDial: RotaryDialView
+    private lateinit var evDial: RotaryDialView
     private lateinit var meterUnder: TextView
     private lateinit var meterOver: TextView
 
     private var selectedLook = Look.BLACK_AND_WHITE
     private var isManualMode = false
-    private var currentIso = ISO_AUTO
-    private var currentEv = 0
     private var currentMeterState = MeterState.CORRECT
 
     private val blinkHandler = Handler(Looper.getMainLooper())
@@ -63,14 +65,23 @@ class MainActivity : Activity() {
 
         modeToggle = findViewById(R.id.modeToggle)
         manualControlsRow = findViewById(R.id.manualControlsRow)
-        isoButton = findViewById(R.id.isoButton)
-        evButton = findViewById(R.id.evButton)
+        isoLabel = findViewById(R.id.isoLabel)
+        evLabel = findViewById(R.id.evLabel)
+        isoDial = findViewById(R.id.isoDial)
+        evDial = findViewById(R.id.evDial)
         meterUnder = findViewById(R.id.meterUnder)
         meterOver = findViewById(R.id.meterOver)
 
         modeToggle.setOnClickListener { toggleMode() }
-        isoButton.setOnClickListener { cycleIso() }
-        evButton.setOnClickListener { cycleExposureCompensation() }
+
+        isoDial.setOnValueChangedListener { _, value ->
+            isoLabel.text = "ISO: ${value.uppercase()}"
+            cameraPreview.setIso(value)
+        }
+        evDial.setOnValueChangedListener { _, value ->
+            evLabel.text = "EV: $value"
+            cameraPreview.setExposureCompensation(value.toInt())
+        }
 
         findViewById<RadioGroup>(R.id.lookChips).setOnCheckedChangeListener { _, checkedId ->
             selectedLook = when (checkedId) {
@@ -100,8 +111,21 @@ class MainActivity : Activity() {
         if (isManualMode) {
             modeToggle.text = getString(R.string.mode_manual)
             manualControlsRow.visibility = View.VISIBLE
-            cameraPreview.setIso(currentIso)
-            cameraPreview.setExposureCompensation(currentEv)
+
+            val isoValues = cameraPreview.supportedIsoValues().ifEmpty { FALLBACK_ISO_VALUES }
+            val isoStartIndex = isoValues.indexOf(ISO_AUTO).let { if (it < 0) 0 else it }
+            isoDial.setValues(isoValues, isoStartIndex)
+            isoLabel.text = "ISO: ${isoValues[isoStartIndex].uppercase()}"
+            cameraPreview.setIso(isoValues[isoStartIndex])
+
+            val min = cameraPreview.minExposureCompensation()
+            val max = cameraPreview.maxExposureCompensation()
+            val evValues = if (max > min) (min..max).map { it.toString() } else listOf("0")
+            val evStartIndex = evValues.indexOf("0").let { if (it < 0) 0 else it }
+            evDial.setValues(evValues, evStartIndex)
+            evLabel.text = "EV: ${evValues[evStartIndex]}"
+            cameraPreview.setExposureCompensation(evValues[evStartIndex].toInt())
+
             cameraPreview.setOnAverageLumaListener { luma ->
                 currentMeterState = ExposureMeter.evaluate(luma)
             }
@@ -117,23 +141,6 @@ class MainActivity : Activity() {
             cameraPreview.setIso(ISO_AUTO)
             cameraPreview.setExposureCompensation(0)
         }
-    }
-
-    private fun cycleIso() {
-        val values = cameraPreview.supportedIsoValues().ifEmpty { FALLBACK_ISO_VALUES }
-        val currentIndex = values.indexOf(currentIso).let { if (it < 0) 0 else it }
-        currentIso = values[(currentIndex + 1) % values.size]
-        isoButton.text = "ISO: ${currentIso.uppercase()}"
-        cameraPreview.setIso(currentIso)
-    }
-
-    private fun cycleExposureCompensation() {
-        val min = cameraPreview.minExposureCompensation()
-        val max = cameraPreview.maxExposureCompensation()
-        if (max <= min) return
-        currentEv = if (currentEv >= max) min else currentEv + 1
-        evButton.text = "EV: $currentEv"
-        cameraPreview.setExposureCompensation(currentEv)
     }
 
     private fun updateMeterVisibility() {

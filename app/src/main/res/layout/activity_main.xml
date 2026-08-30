@@ -35,40 +35,68 @@
                 android:id="@+id/manualControlsRow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:gravity="center"
                 android:visibility="gone">
 
-                <TextView
-                    android:id="@+id/isoButton"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="20dp"
-                    android:textColor="#FFFFFF"
-                    android:text="@string/iso_auto" />
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingBottom="4dp">
 
-                <TextView
-                    android:id="@+id/evButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="20dp"
-                    android:textColor="#FFFFFF"
-                    android:text="@string/ev_zero" />
+                    <TextView
+                        android:id="@+id/isoLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="20dp"
+                        android:textColor="#FFFFFF"
+                        android:text="@string/iso_auto" />
 
-                <TextView
-                    android:id="@+id/meterUnder"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
-                    android:text="@string/meter_under" />
+                    <TextView
+                        android:id="@+id/evLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:text="@string/ev_zero" />
 
-                <TextView
-                    android:id="@+id/meterOver"
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="4dp"
-                    android:textColor="#FFFFFF"
-                    android:text="@string/meter_over" />
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <com.mombotro.rangefindercam.camera.RotaryDialView
+                        android:id="@+id/isoDial"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_marginRight="16dp" />
+
+                    <com.mombotro.rangefindercam.camera.RotaryDialView
+                        android:id="@+id/evDial"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_marginRight="20dp" />
+
+                    <TextView
+                        android:id="@+id/meterUnder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="#FFFFFF"
+                        android:text="@string/meter_under" />
+
+                    <TextView
+                        android:id="@+id/meterOver"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="4dp"
+                        android:textColor="#FFFFFF"
+                        android:text="@string/meter_over" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
