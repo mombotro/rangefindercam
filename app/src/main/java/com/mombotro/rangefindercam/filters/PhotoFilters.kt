@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import kotlin.random.Random
 
 enum class Look {
     BLACK_AND_WHITE,
@@ -54,6 +55,40 @@ object PhotoFilters {
         ))
         val toned = drawWithMatrix(source, sepia)
         return drawWithMatrix(toned, fadeMatrix)
+    }
+
+    fun applyGrain(source: Bitmap): Bitmap {
+        val width = source.width
+        val height = source.height
+        val pixels = IntArray(width * height)
+        source.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        val random = Random(System.nanoTime())
+        val noiseRange = 40 // max +/- per channel
+
+        for (i in pixels.indices) {
+            val pixel = pixels[i]
+            val a = (pixel shr 24) and 0xFF
+            val r = addNoise((pixel shr 16) and 0xFF, random, noiseRange)
+            val g = addNoise((pixel shr 8) and 0xFF, random, noiseRange)
+            val b = addNoise(pixel and 0xFF, random, noiseRange)
+            pixels[i] = (a shl 24) or (r shl 16) or (g shl 8) or b
+        }
+
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        result.setPixels(pixels, 0, width, 0, 0, width, height)
+        return result
+    }
+
+    private fun addNoise(channel: Int, random: Random, range: Int): Int {
+        val noise = random.nextInt(range * 2 + 1) - range
+        return (channel + noise).coerceIn(0, 255)
+    }
+
+    fun apply(source: Bitmap, look: Look): Bitmap = when (look) {
+        Look.BLACK_AND_WHITE -> applyBlackAndWhite(source)
+        Look.SEPIA -> applySepia(source)
+        Look.GRAIN -> applyGrain(source)
     }
 
     internal fun drawWithMatrix(source: Bitmap, matrix: ColorMatrix): Bitmap {

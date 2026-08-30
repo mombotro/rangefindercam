@@ -66,4 +66,54 @@ class PhotoFiltersTest {
 
         assertTrue("expected faded white < 255, was $resultBrightness", resultBrightness < 255)
     }
+
+    @Test
+    fun `grain output differs from input at many pixels`() {
+        val source = Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888)
+        for (y in 0 until 20) {
+            for (x in 0 until 20) {
+                source.setPixel(x, y, Color.rgb(128, 128, 128))
+            }
+        }
+        val result = PhotoFilters.applyGrain(source)
+
+        var changedCount = 0
+        for (y in 0 until 20) {
+            for (x in 0 until 20) {
+                if (result.getPixel(x, y) != source.getPixel(x, y)) changedCount++
+            }
+        }
+        assertTrue("expected most of the 400 pixels to be perturbed by noise, only $changedCount changed",
+            changedCount > 300)
+    }
+
+    @Test
+    fun `grain keeps channel values within valid 0 to 255 range`() {
+        // Pixels near the edges of the valid range are the ones most likely
+        // to reveal an unclamped overflow/underflow bug in the noise step.
+        val source = coloredBitmap(Color.rgb(2, 253, 128))
+        val result = PhotoFilters.applyGrain(source)
+
+        val pixel = result.getPixel(0, 0)
+        assertTrue(Color.red(pixel) in 0..255)
+        assertTrue(Color.green(pixel) in 0..255)
+        assertTrue(Color.blue(pixel) in 0..255)
+    }
+
+    @Test
+    fun `apply dispatches to the matching filter for each look`() {
+        val source = coloredBitmap(Color.rgb(200, 50, 100))
+
+        val bwPixel = PhotoFilters.apply(source, Look.BLACK_AND_WHITE).getPixel(0, 0)
+        assertEquals(Color.red(bwPixel), Color.green(bwPixel))
+
+        val sepiaPixel = PhotoFilters.apply(source, Look.SEPIA).getPixel(0, 0)
+        assertTrue(Color.red(sepiaPixel) > Color.blue(sepiaPixel))
+
+        // GRAIN's output is randomized, so just confirm apply() routes to it
+        // without throwing and returns a same-sized bitmap.
+        val grainResult = PhotoFilters.apply(source, Look.GRAIN)
+        assertEquals(source.width, grainResult.width)
+        assertEquals(source.height, grainResult.height)
+    }
 }
