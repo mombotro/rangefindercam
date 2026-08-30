@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.mombotro.rangefindercam.camera.CameraPreviewView
+        android:id="@+id/cameraPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Landscape moves the controls to a narrow side dock instead of a
+         full-width bottom bar: the same bar, stacked this way, ate up more
+         than half the screen's much shorter landscape height (especially
+         with Manual mode's dials showing), hiding most of the frame. -->
+    <LinearLayout
+        android:layout_width="180dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="#CC000000"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/modeToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:textColor="#FFFFFF"
+            android:text="@string/mode_auto" />
+
+        <LinearLayout
+            android:id="@+id/manualControlsRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/isoLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:text="@string/iso_auto" />
+
+            <com.mombotro.rangefindercam.camera.RotaryDialView
+                android:id="@+id/isoDial"
+                android:layout_width="130dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/evLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:text="@string/ev_zero" />
+
+            <com.mombotro.rangefindercam.camera.RotaryDialView
+                android:id="@+id/evDial"
+                android:layout_width="130dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="2dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/meterUnder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/meter_under" />
+
+                <TextView
+                    android:id="@+id/meterOver"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="4dp"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/meter_over" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <RadioGroup
+            android:id="@+id/lookChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <RadioButton
+                android:id="@+id/chipBlackAndWhite"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:checked="true"
+                android:text="@string/look_black_and_white" />
+
+            <RadioButton
+                android:id="@+id/chipSepia"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:text="@string/look_sepia" />
+
+            <RadioButton
+                android:id="@+id/chipGrain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:text="@string/look_grain" />
+
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/shutterButton"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/shutter_button_bg"
+            android:text="" />
+
+    </LinearLayout>
+
+</FrameLayout>

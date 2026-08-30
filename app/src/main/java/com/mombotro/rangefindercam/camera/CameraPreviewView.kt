@@ -3,23 +3,36 @@ package com.mombotro.rangefindercam.camera
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.graphics.Rect
 import android.hardware.Camera
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.WindowManager
 
 /**
  * Wraps the classic (Camera1) camera API in a SurfaceView. Camera2 isn't
  * available until API21; this app's minSdk is 16, so Camera1 is the only
  * option. The preview is always plain/unfiltered - filters apply once,
- * after capture, in PhotoFilters.
+ * after capture, in PhotoFilters. Supports live rotation (the Activity
+ * declares configChanges for orientation so it isn't recreated, and calls
+ * updateOrientation() itself on each turn) rather than being locked to one
+ * orientation.
  */
 class CameraPreviewView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
+
+    private companion object {
+        // Camera.open() with no argument opens this id - the first
+        // back-facing camera - so CameraInfo is looked up for the same id
+        // to keep the rotation math and the actually-open camera in sync.
+        const val CAMERA_ID = 0
+    }
 
     private var camera: Camera? = null
     var onCameraError: ((String) -> Unit)? = null
@@ -28,26 +41,28 @@ class CameraPreviewView @JvmOverloads constructor(
     private var lastLumaSampleMs = 0L
     private val lumaSampleIntervalMs = 500L
 
+    private val cameraInfo = Camera.CameraInfo().also {
+        Camera.getCameraInfo(CAMERA_ID, it)
+    }
+
+    // The rotation actually applied to both the live preview and the saved
+    // JPEG right now - recomputed by updateOrientation(), cached here so
+    // the focus-area math (which needs the same value) doesn't have to
+    // requery the display rotation itself.
+    private var appliedRotationDegrees = 0
+
     init {
         holder.addCallback(this)
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         try {
-            val opened = Camera.open()
+            val opened = Camera.open(CAMERA_ID)
             camera = opened
-            opened.setDisplayOrientation(90)
-            // setDisplayOrientation only rotates the live preview surface -
-            // it has no effect on the saved JPEG, which needs its own
-            // rotation set via Parameters (written into the file's EXIF
-            // orientation tag) or it saves sideways regardless of how the
-            // preview looked on screen.
-            val parameters = opened.parameters
-            parameters.setRotation(90)
-            opened.parameters = parameters
             opened.setPreviewDisplay(holder)
             opened.startPreview()
             applyPreviewCallback()
+            updateOrientation()
         } catch (e: Exception) {
             onCameraError?.invoke("Could not open camera: ${e.message}")
         }
@@ -72,6 +87,61 @@ class CameraPreviewView @JvmOverloads constructor(
             release()
         }
         camera = null
+    }
+
+    /**
+     * Recomputes and applies the correct preview/capture rotation for the
+     * device's current physical orientation. Called once right after the
+     * camera opens, and again by MainActivity.onConfigurationChanged() on
+     * every subsequent rotation (the Activity declares configChanges for
+     * orientation specifically so it survives rotation instead of being
+     * recreated, which would mean reopening the camera hardware - slow and
+     * janky, especially on this old device - on every turn).
+     *
+     * This is the standard Android Camera1 rotation formula (the same shape
+     * published in Android's own camera documentation and used across the
+     * ecosystem): combine the sensor's fixed physical mounting angle
+     * (CameraInfo.orientation) with the display's current rotation relative
+     * to the device's natural orientation. The earlier portrait-only
+     * version of this hardcoded both values to 90 degrees, which only
+     * happened to be correct for the one orientation it was ever tested in.
+     */
+    fun updateOrientation() {
+        val opened = camera ?: return
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        @Suppress("DEPRECATION")
+        val displayRotation = windowManager.defaultDisplay.rotation
+        val degrees = when (displayRotation) {
+            Surface.ROTATION_0 -> 0
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+
+        val result = if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            val raw = (cameraInfo.orientation + degrees) % 360
+            (360 - raw) % 360 // compensate for front-camera mirroring
+        } else {
+            (cameraInfo.orientation - degrees + 360) % 360
+        }
+        appliedRotationDegrees = result
+
+        try {
+            opened.setDisplayOrientation(result)
+            // setDisplayOrientation only rotates the live preview surface -
+            // it has no effect on the saved JPEG, which needs its own
+            // rotation set via Parameters (written into the file's EXIF
+            // orientation tag, or physically rotated by this HAL - either
+            // way it saves sideways without this) or it saves in whatever
+            // orientation the sensor is physically mounted at regardless of
+            // how the preview looked on screen.
+            val parameters = opened.parameters
+            parameters.setRotation(result)
+            opened.parameters = parameters
+        } catch (e: Exception) {
+            onCameraError?.invoke("Could not set rotation: ${e.message}")
+        }
     }
 
     /** Takes a photo with the current preview frame. Restarts the preview
@@ -209,15 +279,34 @@ class CameraPreviewView @JvmOverloads constructor(
         }
     }
 
-    /** Maps a tap in view coordinates to Camera1's focus-area coordinate
+    /**
+     * Maps a tap in view coordinates to Camera1's focus-area coordinate
      * space, which is always -1000..1000 on both axes regardless of preview
-     * size. The view is rotated 90 degrees relative to the sensor (this is a
-     * portrait back-camera preview via setDisplayOrientation(90)), so screen
-     * X maps to sensor Y and screen Y maps to sensor X. */
+     * size or rotation. Builds the same forward transform the driver
+     * conceptually applies to go from its own coordinate space to what's
+     * shown on screen (mirror for a front camera, then rotate by the
+     * currently-applied display orientation, then scale/translate into view
+     * pixels) and inverts it, so this works at any of the four rotations
+     * updateOrientation() can produce - not just the one this was originally
+     * written for.
+     */
     private fun calculateTapArea(x: Float, y: Float): Rect {
         val areaSize = 100
-        val focusX = (y / height * 2000 - 1000)
-        val focusY = -(x / width * 2000 - 1000)
+        val matrix = Matrix()
+        matrix.setScale(
+            if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) -1f else 1f,
+            1f
+        )
+        matrix.postRotate(appliedRotationDegrees.toFloat())
+        matrix.postScale(width / 2000f, height / 2000f)
+        matrix.postTranslate(width / 2f, height / 2f)
+        matrix.invert(matrix)
+
+        val points = floatArrayOf(x, y)
+        matrix.mapPoints(points)
+        val focusX = points[0]
+        val focusY = points[1]
+
         val left = (focusX - areaSize / 2f).coerceIn(-1000f, 1000f - areaSize)
         val top = (focusY - areaSize / 2f).coerceIn(-1000f, 1000f - areaSize)
         return Rect(left.toInt(), top.toInt(), (left + areaSize).toInt(), (top + areaSize).toInt())

@@ -1,6 +1,7 @@
 package com.mombotro.rangefindercam
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -154,6 +155,16 @@ class MainActivity : Activity() {
         }
         meterUnder.visibility = if (showUnder) View.VISIBLE else View.INVISIBLE
         meterOver.visibility = if (showOver) View.VISIBLE else View.INVISIBLE
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The manifest declares configChanges for orientation/screenSize so
+        // the Activity survives rotation instead of being recreated (which
+        // would mean reopening the camera hardware on every turn - slow on
+        // this device). The rest of the layout re-wraps on its own; only
+        // the camera's rotation needs an explicit recompute.
+        cameraPreview.updateOrientation()
     }
 
     override fun onDestroy() {
