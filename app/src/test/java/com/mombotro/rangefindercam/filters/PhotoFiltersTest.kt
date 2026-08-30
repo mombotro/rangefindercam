@@ -101,6 +101,33 @@ class PhotoFiltersTest {
     }
 
     @Test
+    fun `grain noise is monochrome (same delta on every channel), not colored speckle`() {
+        // A gray input (R==G==B) run through grain must still have R==G==B
+        // afterward for every pixel - proving one shared noise value is
+        // applied per pixel, not three independent per-channel deltas
+        // (which would produce visible colored speckling instead of real
+        // film-grain texture).
+        val width = 20
+        val height = 20
+        val source = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                source.setPixel(x, y, Color.rgb(128, 128, 128))
+            }
+        }
+
+        val result = PhotoFilters.applyGrain(source)
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val pixel = result.getPixel(x, y)
+                assertEquals("pixel ($x,$y) red != green", Color.red(pixel), Color.green(pixel))
+                assertEquals("pixel ($x,$y) green != blue", Color.green(pixel), Color.blue(pixel))
+            }
+        }
+    }
+
+    @Test
     fun `apply dispatches to the matching filter for each look, plus grain on all of them`() {
         // apply() always composes grain on top of the chosen look, so exact
         // per-pixel assertions (like B&W's R==G==B) no longer hold - grain
@@ -131,11 +158,10 @@ class PhotoFiltersTest {
 
         val bwSource = coloredSource(Color.rgb(200, 50, 100))
         val bwResult = PhotoFilters.apply(bwSource, Look.BLACK_AND_WHITE)
-        // Grain's noise is symmetric and independent per channel, so a
-        // desaturated (R==G==B before grain) image should still average out
-        // close to zero red-minus-blue difference even after noise.
-        assertTrue("expected near-zero avg red-blue gap for B&W+grain, was ${averageRedMinusBlue(bwResult)}",
-            Math.abs(averageRedMinusBlue(bwResult)) < 10)
+        // Grain applies one shared noise delta per pixel (monochrome, not
+        // per-channel), so a desaturated (R==G==B before grain) image stays
+        // exactly R==G==B after grain too - not just close on average.
+        assertEquals(0.0, averageRedMinusBlue(bwResult), 0.0)
 
         val sepiaSource = coloredSource(Color.rgb(128, 128, 128))
         val sepiaResult = PhotoFilters.apply(sepiaSource, Look.SEPIA)

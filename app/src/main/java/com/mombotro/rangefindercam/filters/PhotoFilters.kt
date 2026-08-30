@@ -69,9 +69,15 @@ object PhotoFilters {
         for (i in pixels.indices) {
             val pixel = pixels[i]
             val a = (pixel shr 24) and 0xFF
-            val r = addNoise((pixel shr 16) and 0xFF, random, noiseRange)
-            val g = addNoise((pixel shr 8) and 0xFF, random, noiseRange)
-            val b = addNoise(pixel and 0xFF, random, noiseRange)
+            // One noise value per pixel, applied equally to all three
+            // channels: film grain is a luminance effect, not a color one -
+            // an independent random delta per channel instead produces
+            // visible colored speckling (a chromatic-aberration-like
+            // artifact) rather than genuine monochrome grain texture.
+            val noise = nextNoise(random, noiseRange)
+            val r = applyNoise((pixel shr 16) and 0xFF, noise)
+            val g = applyNoise((pixel shr 8) and 0xFF, noise)
+            val b = applyNoise(pixel and 0xFF, noise)
             pixels[i] = (a shl 24) or (r shl 16) or (g shl 8) or b
         }
 
@@ -80,10 +86,11 @@ object PhotoFilters {
         return result
     }
 
-    private fun addNoise(channel: Int, random: Random, range: Int): Int {
-        val noise = random.nextInt(range * 2 + 1) - range
-        return (channel + noise).coerceIn(0, 255)
-    }
+    private fun nextNoise(random: Random, range: Int): Int =
+        random.nextInt(range * 2 + 1) - range
+
+    private fun applyNoise(channel: Int, noise: Int): Int =
+        (channel + noise).coerceIn(0, 255)
 
     // Grain is composed onto every look, not just its own chip - it reads as
     // film texture regardless of tone, so B&W and Sepia get it too.
