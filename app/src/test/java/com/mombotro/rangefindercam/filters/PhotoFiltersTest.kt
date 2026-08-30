@@ -47,4 +47,23 @@ class PhotoFiltersTest {
         assertTrue("expected contrast-boosted brightness > plain input (200), was $resultBrightness",
             resultBrightness > 200)
     }
+
+    @Test
+    fun `sepia output has a warm tint (red channel exceeds blue)`() {
+        val source = coloredBitmap(Color.rgb(128, 128, 128))
+        val result = PhotoFilters.applySepia(source)
+
+        val pixel = result.getPixel(0, 0)
+        assertTrue("expected red > blue for a sepia tint, red=${Color.red(pixel)} blue=${Color.blue(pixel)}",
+            Color.red(pixel) > Color.blue(pixel))
+    }
+
+    @Test
+    fun `sepia reduces dynamic range for a faded look`() {
+        val brightSource = coloredBitmap(Color.rgb(255, 255, 255))
+        val result = PhotoFilters.applySepia(brightSource)
+        val resultBrightness = Color.red(result.getPixel(0, 0))
+
+        assertTrue("expected faded white < 255, was $resultBrightness", resultBrightness < 255)
+    }
 }
