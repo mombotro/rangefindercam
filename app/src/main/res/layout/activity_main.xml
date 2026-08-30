@@ -16,6 +16,64 @@
         android:background="#CC000000"
         android:padding="12dp">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:id="@+id/modeToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="20dp"
+                android:textColor="#FFFFFF"
+                android:text="@string/mode_auto" />
+
+            <LinearLayout
+                android:id="@+id/manualControlsRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/isoButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="20dp"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/iso_auto" />
+
+                <TextView
+                    android:id="@+id/evButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="20dp"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/ev_zero" />
+
+                <TextView
+                    android:id="@+id/meterUnder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/meter_under" />
+
+                <TextView
+                    android:id="@+id/meterOver"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="#FFFFFF"
+                    android:text="@string/meter_over" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
         <RadioGroup
             android:id="@+id/lookChips"
             android:layout_width="match_parent"

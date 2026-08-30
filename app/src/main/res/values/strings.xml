@@ -3,4 +3,10 @@
     <string name="look_black_and_white">B&amp;W</string>
     <string name="look_sepia">Sepia</string>
     <string name="look_grain">Grain</string>
+    <string name="mode_auto">AUTO</string>
+    <string name="mode_manual">MANUAL</string>
+    <string name="iso_auto">ISO: AUTO</string>
+    <string name="ev_zero">EV: 0</string>
+    <string name="meter_under">&lt;</string>
+    <string name="meter_over">&gt;</string>
 </resources>
