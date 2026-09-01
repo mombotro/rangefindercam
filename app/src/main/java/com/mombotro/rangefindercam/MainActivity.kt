@@ -1,7 +1,10 @@
 package com.mombotro.rangefindercam
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -29,6 +32,8 @@ class MainActivity : Activity() {
         // reports when it IS present.
         val FALLBACK_ISO_VALUES = listOf("auto", "100", "200", "400", "800", "1600")
         const val METER_BLINK_INTERVAL_MS = 400L
+        const val PERMISSION_REQUEST_CODE = 1001
+        val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 
     private lateinit var cameraPreview: CameraPreviewView
@@ -104,6 +109,43 @@ class MainActivity : Activity() {
                     Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                 }
             )
+        }
+
+        requestPermissionsIfNeeded()
+    }
+
+    /**
+     * On a real device running API23+ (the runtime permission model
+     * applies to any device actually running API23+, not based on this
+     * app's own minSdk 16 - which is why this was never needed while
+     * testing on the API16 LG Intuition, but is required on the Note 9,
+     * which runs Android 10 / API29), CAMERA and WRITE_EXTERNAL_STORAGE
+     * are dangerous permissions requiring an explicit runtime grant even
+     * though they're already declared in the manifest. Below API23 (or
+     * once already granted) this is a no-op.
+     */
+    private fun requestPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val missing = REQUIRED_PERMISSIONS.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            requestPermissions(missing.toTypedArray(), PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != PERMISSION_REQUEST_CODE) return
+        if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            // The camera's initial open attempt (triggered automatically
+            // when the SurfaceView's surface was created, before this
+            // permission prompt was ever answered) already failed with a
+            // permission error and won't retry on its own - it needs an
+            // explicit nudge now that permission actually exists.
+            cameraPreview.retryAfterPermissionGranted()
+        } else {
+            Toast.makeText(this, "Camera and storage permission are required", Toast.LENGTH_LONG).show()
         }
     }
 

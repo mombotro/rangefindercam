@@ -8,7 +8,7 @@ android {
     defaultConfig {
         applicationId "com.mombotro.rangefindercam"
         minSdk 16
-        targetSdk 35
+        targetSdk 29
         versionCode 1
         versionName "0.1"
     }

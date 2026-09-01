@@ -56,6 +56,21 @@ class CameraPreviewView @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        openCamera(holder)
+    }
+
+    /**
+     * Opens the camera and starts the preview against [holder]. Broken out
+     * from surfaceCreated() so it can also be called from retryAfterPermissionGranted()
+     * - on a real API23+ device (targetSdk 29 means the runtime permission
+     * model applies on any device that's actually running API23+, e.g. the
+     * Note 9, regardless of this app's own minSdk 16), the surface is
+     * usually already created by the time the user answers the runtime
+     * CAMERA permission prompt, so the original surfaceCreated() call has
+     * already failed with a permission error and won't fire again on its
+     * own - the caller has to explicitly retry once permission is granted.
+     */
+    private fun openCamera(holder: SurfaceHolder) {
         try {
             val opened = Camera.open(CAMERA_ID)
             camera = opened
@@ -65,6 +80,15 @@ class CameraPreviewView @JvmOverloads constructor(
             updateOrientation()
         } catch (e: Exception) {
             onCameraError?.invoke("Could not open camera: ${e.message}")
+        }
+    }
+
+    /** Call after the user grants the CAMERA runtime permission on a real
+     * API23+ device, if the initial open attempt failed because it wasn't
+     * granted yet. No-op if the camera is already open. */
+    fun retryAfterPermissionGranted() {
+        if (camera == null) {
+            openCamera(holder)
         }
     }
 
