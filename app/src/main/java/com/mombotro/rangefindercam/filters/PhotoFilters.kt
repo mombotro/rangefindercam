@@ -15,6 +15,8 @@ enum class Look {
 
 object PhotoFilters {
 
+    const val DEFAULT_GRAIN_INTENSITY = 40
+
     fun applyBlackAndWhite(source: Bitmap): Bitmap {
         val desaturate = ColorMatrix().apply { setSaturation(0f) }
         val contrast = 1.6f
@@ -57,14 +59,19 @@ object PhotoFilters {
         return drawWithMatrix(toned, fadeMatrix)
     }
 
-    fun applyGrain(source: Bitmap): Bitmap {
+    /** [intensity] is the max +/- per-channel noise delta (0 = no grain at
+     * all, higher = heavier film texture). Matches the grain slider's raw
+     * 0-100 progress value directly - no extra scaling needed. */
+    fun applyGrain(source: Bitmap, intensity: Int = DEFAULT_GRAIN_INTENSITY): Bitmap {
+        if (intensity <= 0) return source
+
         val width = source.width
         val height = source.height
         val pixels = IntArray(width * height)
         source.getPixels(pixels, 0, width, 0, 0, width, height)
 
         val random = Random(System.nanoTime())
-        val noiseRange = 40 // max +/- per channel
+        val noiseRange = intensity
 
         for (i in pixels.indices) {
             val pixel = pixels[i]
@@ -94,13 +101,13 @@ object PhotoFilters {
 
     // Grain is composed onto every look, not just its own chip - it reads as
     // film texture regardless of tone, so B&W and Sepia get it too.
-    fun apply(source: Bitmap, look: Look): Bitmap {
+    fun apply(source: Bitmap, look: Look, grainIntensity: Int = DEFAULT_GRAIN_INTENSITY): Bitmap {
         val toned = when (look) {
             Look.BLACK_AND_WHITE -> applyBlackAndWhite(source)
             Look.SEPIA -> applySepia(source)
             Look.GRAIN -> source
         }
-        return applyGrain(toned)
+        return applyGrain(toned, grainIntensity)
     }
 
     internal fun drawWithMatrix(source: Bitmap, matrix: ColorMatrix): Bitmap {

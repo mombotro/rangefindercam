@@ -101,6 +101,14 @@ class PhotoFiltersTest {
     }
 
     @Test
+    fun `grain at zero intensity leaves the image untouched`() {
+        val source = coloredBitmap(Color.rgb(100, 150, 200))
+        val result = PhotoFilters.applyGrain(source, intensity = 0)
+
+        assertEquals(Color.rgb(100, 150, 200), result.getPixel(0, 0))
+    }
+
+    @Test
     fun `grain noise is monochrome (same delta on every channel), not colored speckle`() {
         // A gray input (R==G==B) run through grain must still have R==G==B
         // afterward for every pixel - proving one shared noise value is

@@ -6,12 +6,15 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.hardware.Camera
+import android.media.ExifInterface
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Wraps the classic (Camera1) camera API in a SurfaceView. Camera2 isn't
@@ -177,11 +180,11 @@ class CameraPreviewView @JvmOverloads constructor(
             return
         }
         opened.takePicture(null, null) { data, _ ->
-            val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
-            if (bitmap == null) {
+            val decoded = BitmapFactory.decodeByteArray(data, 0, data.size)
+            if (decoded == null) {
                 onError("Could not decode photo")
             } else {
-                onCaptured(bitmap)
+                onCaptured(normalizeOrientation(data, decoded))
             }
             try {
                 opened.startPreview()
@@ -190,6 +193,46 @@ class CameraPreviewView @JvmOverloads constructor(
                 onError("Could not restart preview after capture: ${e.message}")
             }
         }
+    }
+
+    /**
+     * Camera1 HALs disagree about what Parameters.setRotation() actually
+     * does to a captured JPEG: this device's LG HAL physically rotates the
+     * pixel buffer to match, writing no meaningful EXIF orientation tag -
+     * but the Note 9's Samsung HAL does the opposite, leaving pixels in the
+     * sensor's native orientation and only recording the rotation in the
+     * EXIF tag instead. BitmapFactory.decodeByteArray() ignores EXIF
+     * entirely, so on the Note 9 the decoded bitmap came out sideways -
+     * looked fine in a raw pixel viewer that also ignores EXIF, but wrong
+     * in any real gallery app that respects it, and our own save path
+     * re-encodes the bitmap from scratch anyway (dropping the original
+     * EXIF along with it), so a device that relied on the tag alone lost
+     * the correction entirely. Reading the tag here and applying it to the
+     * pixels directly makes the result correct either way, regardless of
+     * which behavior a given HAL chose.
+     */
+    private fun normalizeOrientation(data: ByteArray, bitmap: Bitmap): Bitmap {
+        val degrees = try {
+            val tempFile = File.createTempFile("capture", ".jpg", context.cacheDir)
+            FileOutputStream(tempFile).use { it.write(data) }
+            val orientation = ExifInterface(tempFile.absolutePath)
+                .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            tempFile.delete()
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+        } catch (e: Exception) {
+            0
+        }
+        if (degrees == 0) return bitmap
+
+        val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (rotated !== bitmap) bitmap.recycle()
+        return rotated
     }
 
     /** Every supported ISO value this hardware's Camera1 vendor parameters
