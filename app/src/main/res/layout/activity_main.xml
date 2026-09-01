@@ -8,12 +8,25 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <Button
+        android:id="@+id/galleryButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="10dp"
+        android:background="#80000000"
+        android:textColor="#FFFFFF"
+        android:text="@string/gallery" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="vertical"
-        android:background="#CC000000"
+        android:background="#80000000"
         android:padding="12dp">
 
         <LinearLayout
@@ -21,84 +34,20 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:paddingBottom="8dp">
+            android:paddingBottom="4dp">
 
             <TextView
-                android:id="@+id/modeToggle"
+                android:id="@+id/grainLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginRight="20dp"
+                android:layout_marginRight="12dp"
                 android:textColor="#FFFFFF"
-                android:text="@string/mode_auto" />
+                android:text="@string/grain_label_default" />
 
-            <LinearLayout
-                android:id="@+id/manualControlsRow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:paddingBottom="4dp">
-
-                    <TextView
-                        android:id="@+id/isoLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginRight="20dp"
-                        android:textColor="#FFFFFF"
-                        android:text="@string/iso_auto" />
-
-                    <TextView
-                        android:id="@+id/evLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF"
-                        android:text="@string/ev_zero" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center">
-
-                    <com.mombotro.rangefindercam.camera.RotaryDialView
-                        android:id="@+id/isoDial"
-                        android:layout_width="130dp"
-                        android:layout_height="52dp"
-                        android:layout_marginRight="16dp" />
-
-                    <com.mombotro.rangefindercam.camera.RotaryDialView
-                        android:id="@+id/evDial"
-                        android:layout_width="130dp"
-                        android:layout_height="52dp"
-                        android:layout_marginRight="20dp" />
-
-                    <TextView
-                        android:id="@+id/meterUnder"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF"
-                        android:text="@string/meter_under" />
-
-                    <TextView
-                        android:id="@+id/meterOver"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="4dp"
-                        android:textColor="#FFFFFF"
-                        android:text="@string/meter_over" />
-
-                </LinearLayout>
-
-            </LinearLayout>
+            <SeekBar
+                android:id="@+id/grainSlider"
+                android:layout_width="220dp"
+                android:layout_height="wrap_content" />
 
         </LinearLayout>
 

@@ -40,10 +40,6 @@ class CameraPreviewView @JvmOverloads constructor(
     private var camera: Camera? = null
     var onCameraError: ((String) -> Unit)? = null
 
-    private var onAverageLuma: ((Int) -> Unit)? = null
-    private var lastLumaSampleMs = 0L
-    private val lumaSampleIntervalMs = 500L
-
     private val cameraInfo = Camera.CameraInfo().also {
         Camera.getCameraInfo(CAMERA_ID, it)
     }
@@ -79,7 +75,6 @@ class CameraPreviewView @JvmOverloads constructor(
             camera = opened
             opened.setPreviewDisplay(holder)
             opened.startPreview()
-            applyPreviewCallback()
             updateOrientation()
         } catch (e: Exception) {
             onCameraError?.invoke("Could not open camera: ${e.message}")
@@ -101,7 +96,6 @@ class CameraPreviewView @JvmOverloads constructor(
             opened.stopPreview()
             opened.setPreviewDisplay(holder)
             opened.startPreview()
-            applyPreviewCallback()
         } catch (e: Exception) {
             onCameraError?.invoke("Could not restart preview: ${e.message}")
         }
@@ -109,7 +103,6 @@ class CameraPreviewView @JvmOverloads constructor(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         camera?.apply {
-            setPreviewCallback(null)
             stopPreview()
             release()
         }
@@ -188,7 +181,6 @@ class CameraPreviewView @JvmOverloads constructor(
             }
             try {
                 opened.startPreview()
-                applyPreviewCallback()
             } catch (e: Exception) {
                 onError("Could not restart preview after capture: ${e.message}")
             }
@@ -233,87 +225,6 @@ class CameraPreviewView @JvmOverloads constructor(
         val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         if (rotated !== bitmap) bitmap.recycle()
         return rotated
-    }
-
-    /** Every supported ISO value this hardware's Camera1 vendor parameters
-     * report (e.g. "auto", "100", "200", ...), or an empty list if this
-     * device doesn't expose the (unofficial, vendor-specific) iso-values key. */
-    fun supportedIsoValues(): List<String> {
-        val raw = camera?.parameters?.get("iso-values") ?: return emptyList()
-        return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-    }
-
-    /** Sets ISO via the vendor-specific "iso" Camera1 parameter key - there's
-     * no standardized ISO control in this API, only what individual camera
-     * HALs choose to expose this way. */
-    fun setIso(value: String) {
-        val opened = camera ?: return
-        try {
-            val parameters = opened.parameters
-            parameters.set("iso", value)
-            opened.parameters = parameters
-        } catch (e: Exception) {
-            onCameraError?.invoke("Could not set ISO: ${e.message}")
-        }
-    }
-
-    fun minExposureCompensation(): Int = camera?.parameters?.minExposureCompensation ?: 0
-
-    fun maxExposureCompensation(): Int = camera?.parameters?.maxExposureCompensation ?: 0
-
-    fun setExposureCompensation(value: Int) {
-        val opened = camera ?: return
-        try {
-            val parameters = opened.parameters
-            parameters.exposureCompensation = value
-            opened.parameters = parameters
-        } catch (e: Exception) {
-            onCameraError?.invoke("Could not set exposure compensation: ${e.message}")
-        }
-    }
-
-    /** Reports a throttled (~2/sec) average luma sample from the live
-     * preview, for the exposure meter. Pass null to stop sampling (skips
-     * needless per-frame work when the meter isn't shown, e.g. in Auto mode). */
-    fun setOnAverageLumaListener(listener: ((Int) -> Unit)?) {
-        onAverageLuma = listener
-        applyPreviewCallback()
-    }
-
-    private fun applyPreviewCallback() {
-        val opened = camera ?: return
-        if (onAverageLuma == null) {
-            opened.setPreviewCallback(null)
-            return
-        }
-        opened.setPreviewCallback { data, cam ->
-            val now = System.currentTimeMillis()
-            if (now - lastLumaSampleMs < lumaSampleIntervalMs) return@setPreviewCallback
-            lastLumaSampleMs = now
-
-            val size = cam.parameters.previewSize
-            val lumaLength = size.width * size.height
-            if (data.size < lumaLength) return@setPreviewCallback
-
-            // NV21 preview format: the first width*height bytes are the Y
-            // (luma) plane, one byte per pixel - the UV chroma bytes that
-            // follow don't represent brightness, so only the Y plane is
-            // summed. Sampling every 8th byte instead of every byte is
-            // plenty for a rough brightness average and keeps this cheap
-            // enough to run on this old CPU every 500ms without competing
-            // with the UI thread.
-            var sum = 0L
-            var count = 0
-            var i = 0
-            while (i < lumaLength) {
-                sum += data[i].toInt() and 0xFF
-                count++
-                i += 8
-            }
-            if (count > 0) {
-                onAverageLuma?.invoke((sum / count).toInt())
-            }
-        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
