@@ -65,13 +65,17 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.shutterButton).setOnClickListener {
             cameraPreview.capture(
                 onCaptured = { bitmap ->
+                    // Runs on CameraPreviewView's background thread, not the
+                    // UI thread - filtering and saving happen here off-thread
+                    // too, only the final Toast needs to hop back to the UI
+                    // thread.
                     val filtered = PhotoFilters.apply(bitmap, selectedLook, grainIntensity)
                     val saved = PhotoStorage.save(this, filtered)
                     val message = if (saved == null) "Could not save photo" else "Saved"
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    runOnUiThread { Toast.makeText(this, message, Toast.LENGTH_SHORT).show() }
                 },
                 onError = { message ->
-                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    runOnUiThread { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
                 }
             )
         }

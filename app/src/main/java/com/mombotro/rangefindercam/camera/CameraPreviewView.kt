@@ -173,17 +173,34 @@ class CameraPreviewView @JvmOverloads constructor(
             return
         }
         opened.takePicture(null, null) { data, _ ->
-            val decoded = BitmapFactory.decodeByteArray(data, 0, data.size)
-            if (decoded == null) {
-                onError("Could not decode photo")
-            } else {
-                onCaptured(normalizeOrientation(data, decoded))
-            }
+            // Restart the live preview immediately, before any of the
+            // decode/rotate/filter/save work below - that pipeline runs at
+            // full sensor resolution (several MB, tens of megapixels on a
+            // modern phone like the Note 9) and was previously running
+            // synchronously right here on the main thread, freezing the
+            // viewfinder and the whole UI for a very noticeable moment on
+            // every single shot.
             try {
                 opened.startPreview()
             } catch (e: Exception) {
                 onError("Could not restart preview after capture: ${e.message}")
             }
+
+            // The rest (decode, EXIF-normalize, and everything the caller's
+            // onCaptured does - PhotoFilters + PhotoStorage in this app's
+            // case, both CPU/IO-bound at full resolution too) runs on a
+            // background thread instead of here, so none of it blocks the
+            // UI. onCaptured/onError therefore fire on this background
+            // thread, not the main thread - callers that touch UI from
+            // them need to hop back to the main thread themselves.
+            Thread {
+                val decoded = BitmapFactory.decodeByteArray(data, 0, data.size)
+                if (decoded == null) {
+                    onError("Could not decode photo")
+                } else {
+                    onCaptured(normalizeOrientation(data, decoded))
+                }
+            }.start()
         }
     }
 
