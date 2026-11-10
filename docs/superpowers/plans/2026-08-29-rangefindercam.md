@@ -1023,7 +1023,7 @@ adb -s 4c077791 shell ls /storage/sdcard0/Pictures/RangefinderCam/
 ```
 Expected: one `.jpg` file with a timestamp filename. Pull it and inspect visually:
 ```bash
-adb -s 4c077791 pull /storage/sdcard0/Pictures/RangefinderCam/<filename>.jpg /Users/juleah/.claude/jobs/dfc7f9a8/tmp/rangefindercam_test.jpg
+adb -s 4c077791 pull /storage/sdcard0/Pictures/RangefinderCam/<filename>.jpg ./rangefindercam_test.jpg
 ```
 Read the pulled file as an image and confirm it looks like a real high-contrast B&W photo, not a black/corrupt frame. Then open the stock Gallery app on-device and confirm the same photo appears there (proves the media-scan call worked).
 
